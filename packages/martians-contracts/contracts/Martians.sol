@@ -50,33 +50,37 @@ contract Martians is ERC721, ERC721Enumerable, Pausable, AccessControl, Ownable,
         _unpause();
     }
 
+
     function mint(uint256 quantity) external payable {
 
         require(quantity > 0, "Needs to provide a valid number of martians");
-        require(totalSupply() <= 4747, "Can't Mint more that 4747 Martians");
+        require(totalSupply() + quantity <= 4747, "Can't Mint more that 4747 Martians");
+        uint256 newMintedNumber = quantity;
         
-        uint256 previousMintedMartians = buyers[msg.sender];
-        uint256 newMintedNumber = 0;
+        if(!hasRole(MINTER_ROLE, msg.sender))
+            {
+            uint256 previousMintedMartians = buyers[msg.sender];
 
-        if(previousMintedMartians > 0) {
-            newMintedNumber = previousMintedMartians + quantity;
-            require(newMintedNumber <= maxMintNumber, "Can't buy more martians per transaction than maxMintNumber");
+            if(previousMintedMartians > 0) {
+                newMintedNumber = previousMintedMartians + quantity;
+                require(newMintedNumber <= maxMintNumber, "Can't buy more martians per transaction than maxMintNumber");
+            }
+
+            uint256 mintingPrice = 30000000000000000;
+            if(this.totalSupply() > 747)
+                mintingPrice = 60000000000000000;
+
+            uint256 amount = quantity * mintingPrice;
+            require(msg.value >= amount, "Need to send the quantity * minting price");
+
+            (bool sent, ) = martiansWallet.call{value: msg.value}("");
+            require(sent, "Failed to send the payment for martians");
+            buyers[msg.sender] = newMintedNumber;
         }
-        else 
-            newMintedNumber = quantity;
 
-        uint256 mintingPrice = 30000000000000000;
-        if(this.totalSupply() > 747)
-            mintingPrice = 60000000000000000;
 
-        uint256 amount = quantity * mintingPrice;
-        require(msg.value >= amount, "Need to send the quantity * minting price");
-
-        (bool sent, ) = martiansWallet.call{value: msg.value}("");
-        require(sent, "Failed to send the payment for martians");
-
-        _mint(msg.sender, quantity);
-        buyers[msg.sender] = newMintedNumber;
+        _mint(msg.sender, newMintedNumber);
+        
     }
 
     function updateMetadataURI(string calldata _newUri) public onlyOwner {
